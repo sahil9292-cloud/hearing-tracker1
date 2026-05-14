@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Hearing Tracker</title>
+<!-- Password Protection -->
+<script>
+(function(){
+  const PASS = localStorage.getItem('htPass');
+  const CORRECT = localStorage.getItem('htCorrectPass') || 'hearing123';
+  if(PASS !== CORRECT){
+    const entered = prompt('Enter password to access Hearing Tracker:');
+    if(entered !== CORRECT){
+      document.write('<h2 style="font-family:sans-serif;text-align:center;margin-top:40vh;">Access denied. Refresh to try again.</h2>');
+      throw new Error('Access denied');
+    }
+    localStorage.setItem('htPass', entered);
+  }
+})();
+</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f4f8;color:#1a1a2e;min-height:100vh;}
+.app{max-width:500px;margin:0 auto;padding:1rem;}
+.header{background:linear-gradient(135deg,#1565C0,#1976D2);color:white;border-radius:14px;padding:1.1rem 1.3rem;margin-bottom:1rem;box-shadow:0 4px 15px rgba(21,101,192,0.3);}
+.header h1{font-size:19px;font-weight:700;letter-spacing:0.3px;}
+.header p{font-size:11px;opacity:0.85;margin-top:2px;}
+.sync-bar{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:11px;opacity:0.9;}
+.dot{width:8px;height:8px;border-radius:50%;background:#ff9800;flex-shrink:0;}
+.dot.ok{background:#69f0ae;}
+.dot.err{background:#ff5252;}
+.tabs{display:flex;gap:6px;margin-bottom:1rem;}
+.tab{flex:1;padding:9px 4px;border:1.5px solid #dce3ed;border-radius:10px;background:white;font-size:12px;font-weight:600;color:#888;cursor:pointer;transition:all 0.15s;}
+.tab.active{background:#E3F2FD;color:#1565C0;border-color:#1565C0;}
+.section{display:none;animation:fadeIn 0.2s ease;}
+.section.visible{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.card{background:white;border-radius:14px;padding:1.2rem 1.3rem;box-shadow:0 1px 6px rgba(0,0,0,0.07);margin-bottom:0.8rem;}
+.field{margin-bottom:0.9rem;}
+.field label{display:block;font-size:11.5px;color:#555;margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;}
+.field input,.field select,.field textarea{width:100%;padding:10px 12px;border:1.5px solid #e0e7ef;border-radius:9px;font-size:14px;background:white;color:#1a1a2e;transition:border 0.15s;}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:#1565C0;box-shadow:0 0 0 3px rgba(21,101,192,0.08);}
+.field textarea{resize:vertical;min-height:60px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.btn{width:100%;padding:11px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;border:none;margin-bottom:8px;transition:all 0.15s;letter-spacing:0.2px;}
+.btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,0.15);}
+.btn:active{transform:translateY(0);}
+.btn-blue{background:#1565C0;color:white;}
+.btn-green{background:#2e7d32;color:white;}
+.btn-orange{background:#e65100;color:white;}
+.btn-gray{background:#eef2f7;color:#444;}
+.btn-red{background:#c62828;color:white;}
+.btn-row{display:flex;gap:8px;margin-bottom:8px;}
+.btn-row .btn{margin-bottom:0;}
+.entry-card{background:white;border-radius:12px;padding:1rem 1.2rem;margin-bottom:0.7rem;box-shadow:0 1px 5px rgba(0,0,0,0.07);border-left:4px solid #1565C0;transition:box-shadow 0.15s;}
+.entry-card:hover{box-shadow:0 3px 12px rgba(0,0,0,0.1);}
+.entry-card.today{border-left-color:#d32f2f;background:#fff8f8;}
+.entry-card.past{border-left-color:#bbb;opacity:0.85;}
+.ec-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;}
+.ec-name{font-weight:700;font-size:15px;}
+.uid-badge{font-size:10px;background:#E3F2FD;color:#1565C0;padding:3px 9px;border-radius:20px;font-weight:600;white-space:nowrap;}
+.ec-meta{font-size:12px;color:#777;margin-bottom:6px;}
+.badges{margin-bottom:5px;}
+.badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 9px;border-radius:20px;margin-right:4px;margin-bottom:2px;}
+.b-blue{background:#E3F2FD;color:#1565C0;}
+.b-green{background:#E8F5E9;color:#2e7d32;}
+.b-red{background:#FFEBEE;color:#c62828;}
+.b-orange{background:#FFF3E0;color:#e65100;}
+.b-today{background:#d32f2f;color:white;}
+.b-tomorrow{background:#f57c00;color:white;}
+.ec-gmail{font-size:11px;color:#999;margin-top:4px;}
+.ec-remark{font-size:11.5px;color:#777;margin-top:3px;font-style:italic;}
+.ec-actions{display:flex;gap:6px;margin-top:10px;}
+.ec-btn{flex:1;padding:6px;font-size:12px;font-weight:500;border-radius:8px;border:1.5px solid #e0e7ef;background:transparent;color:#555;cursor:pointer;transition:all 0.1s;}
+.ec-btn:hover{background:#f5f7fa;}
+.ec-btn.del{color:#c62828;border-color:#ffcdd2;}
+.ec-btn.del:hover{background:#fff0f0;}
+.empty{text-align:center;color:#bbb;font-size:14px;padding:3rem 0;}
+.filter-row{display:flex;gap:8px;margin-bottom:0.9rem;}
+.filter-row select{flex:1;padding:8px 10px;font-size:12px;border:1.5px solid #e0e7ef;border-radius:9px;background:white;font-weight:500;}
+.step-box{background:white;border-radius:10px;padding:0.9rem 1rem;margin-bottom:0.6rem;box-shadow:0 1px 4px rgba(0,0,0,0.05);display:flex;gap:10px;align-items:flex-start;}
+.step-num{min-width:24px;height:24px;border-radius:50%;background:#1565C0;color:white;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px;}
+.step-content .step-title{font-size:13px;font-weight:600;color:#1a1a2e;margin-bottom:3px;}
+.step-content .step-desc{font-size:12px;color:#666;line-height:1.6;}
+.log-box{background:#0d1117;color:#39d353;border-radius:10px;padding:10px 12px;font-size:11px;font-family:'Courier New',monospace;min-height:90px;max-height:180px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;margin-top:8px;border:1px solid #1a1a2e;}
+.toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);padding:10px 22px;border-radius:12px;font-size:13px;font-weight:600;opacity:0;transition:all 0.3s;z-index:9999;pointer-events:none;box-shadow:0 6px 20px rgba(0,0,0,0.2);white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(-4px);}
+.divider{height:1px;background:#eef2f7;margin:0.75rem 0;}
+.section-title{font-size:13px;font-weight:700;color:#333;margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:0.5px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>⚖️ Hearing Tracker</h1>
+    <p>Notice management · Auto Google Sheets sync · Email reminders</p>
+    <div class="sync-bar">
+      <div class="dot" id="sync-dot"></div>
+      <span id="sync-label">Google Sheets: checking...</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="sw('form')">➕ Add/Edit</button>
+    <button class="tab" onclick="sw('list')">📋 List</button>
+    <button class="tab" onclick="sw('setup')">⚙️ Setup</button>
+  </div>
+
+  <!-- FORM TAB -->
+  <div id="tab-form" class="section visible">
+    <div class="card">
+      <p class="section-title" id="form-lbl">New Entry</p>
+      <div class="field" id="uid-row" style="display:none;">
+        <label>Entry ID</label>
+        <input type="text" id="f-uid" readonly style="background:#f5f7fa;color:#888;"/>
+      </div>
+      <div class="field">
+        <label>Name *</label>
+        <input type="text" id="f-name" placeholder="Client name"/>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>F.Y *</label>
+          <input type="text" id="f-fy" placeholder="2024-25"/>
+        </div>
+        <div class="field">
+          <label>Notice Type *</label>
+          <select id="f-notice">
+            <option value="">Select</option>
+            <option>APPEAL</option>
+            <option>DRC-01</option>
+            <option>RECTIFICATION</option>
+            <option>ASMT-10</option>
+          </select>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>Reply</label>
+          <select id="f-reply">
+            <option value="">Select</option>
+            <option>YES</option>
+            <option>NO</option>
+            <option>PENDING</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Hearing Date *</label>
+          <input type="date" id="f-date"/>
+        </div>
+      </div>
+      <div class="field">
+        <label>Gmail 1 — Primary *</label>
+        <input type="email" id="f-gmail1" placeholder="primary@gmail.com"/>
+      </div>
+      <div class="field">
+        <label>Gmail 2 — Secondary (optional)</label>
+        <input type="email" id="f-gmail2" placeholder="secondary@gmail.com"/>
+      </div>
+      <div class="field">
+        <label>Remark</label>
+        <textarea id="f-remark" placeholder="Optional notes..."></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-blue" onclick="saveEntry()">💾 Save Entry</button>
+        <button class="btn btn-gray" onclick="clearForm()" style="flex:0.45;">Clear</button>
+      </div>
+      <div class="divider"></div>
+      <button class="btn btn-gray" onclick="exportCSV()">📥 Download CSV Backup</button>
+    </div>
+  </div>
+
+  <!-- LIST TAB -->
+  <div id="tab-list" class="section">
+    <div class="filter-row">
+      <select id="fil-n" onchange="renderList()">
+        <option value="">All notice types</option>
+        <option>APPEAL</option><option>DRC-01</option>
+        <option>RECTIFICATION</option><option>ASMT-10</option>
+      </select>
+      <select id="fil-r" onchange="renderList()">
+        <option value="">All replies</option>
+        <option>YES</option><option>NO</option><option>PENDING</option>
+      </select>
+    </div>
+    <div id="list-con"></div>
+  </div>
+
+  <!-- SETUP TAB -->
+  <div id="tab-setup" class="section">
+    <div class="card">
+      <p class="section-title">Google Sheets Connection</p>
+      <div class="field">
+        <label>Apps Script Web App URL</label>
+        <input type="text" id="webhook-url" placeholder="https://script.google.com/macros/s/.../exec"/>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-blue" onclick="saveWebhook()">Save URL</button>
+        <button class="btn btn-green" onclick="testConnection()">Test Connection</button>
+      </div>
+      <button class="btn btn-orange" onclick="syncAll()">🔄 Force Sync All to Sheets</button>
+      <div class="divider"></div>
+      <p style="font-size:11px;color:#888;margin-bottom:4px;">Connection log:</p>
+      <div class="log-box" id="log-box">Waiting...</div>
+    </div>
+
+    <div class="card" style="margin-top:0.5rem;">
+      <p class="section-title">Change Password</p>
+      <div class="field">
+        <label>New Password</label>
+        <input type="password" id="new-pass" placeholder="Enter new password"/>
+      </div>
+      <button class="btn btn-gray" onclick="changePassword()">Update Password</button>
+    </div>
+
+    <div style="margin-top:0.75rem;">
+      <p class="section-title">Setup Guide</p>
+      <div class="step-box"><div class="step-num">1</div><div class="step-content"><div class="step-title">Google Sheet banao</div><div class="step-desc">sheets.google.com → Blank sheet → naam: "Hearing Tracker"</div></div></div>
+      <div class="step-box"><div class="step-num">2</div><div class="step-content"><div class="step-title">Apps Script me code paste karo</div><div class="step-desc">Extensions → Apps Script → pura code delete → HearingTracker.gs code paste karo → Ctrl+S</div></div></div>
+      <div class="step-box"><div class="step-num">3</div><div class="step-content"><div class="step-title">Deploy karo</div><div class="step-desc">Deploy → New deployment → Web app → Execute as: Me → Who has access: Anyone → Deploy → URL copy karo</div></div></div>
+      <div class="step-box"><div class="step-num">4</div><div class="step-content"><div class="step-title">URL yahan paste karo → Test Connection</div><div class="step-desc">"Connected ✓" green aana chahiye log me</div></div></div>
+      <div class="step-box"><div class="step-num">5</div><div class="step-content"><div class="step-title">Auto reminder trigger</div><div class="step-desc">Apps Script → Triggers (⏰) → Add Trigger → sendDailyReminders → Time-driven → Day timer → 9am-10am → Save</div></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STATE ─────────────────────────────────────
+let entries = JSON.parse(localStorage.getItem('htEntries') || '[]');
+let editId = null;
+let webhookUrl = localStorage.getItem('htWebhook') || '';
+if(webhookUrl) { document.getElementById('webhook-url').value = webhookUrl; }
+updateSyncUI(!!webhookUrl, webhookUrl ? 'URL saved — click Test Connection' : 'Not connected');
+
+// ── TAB SWITCH ────────────────────────────────
+function sw(t) {
+  ['form','list','setup'].forEach(id => document.getElementById('tab-'+id).classList.remove('visible'));
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('visible');
+  ['form','list','setup'].forEach((id,i) => { if(id===t) document.querySelectorAll('.tab')[i].classList.add('active'); });
+  if(t==='list') renderList();
+}
+
+// ── LOGGER ────────────────────────────────────
+function log(msg) {
+  const b = document.getElementById('log-box');
+  const time = new Date().toLocaleTimeString('en-IN');
+  b.textContent = '['+time+'] ' + msg + '\n' + b.textContent;
+}
+
+// ── TOAST ─────────────────────────────────────
+function showToast(msg, color='#2e7d32') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = color;
+  t.style.color = 'white';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── SYNC UI ───────────────────────────────────
+function updateSyncUI(ok, msg) {
+  document.getElementById('sync-dot').className = 'dot' + (ok ? ' ok' : ' err');
+  document.getElementById('sync-label').textContent = 'Sheets: ' + (msg || (ok ? 'Connected ✓' : 'Not connected'));
+}
+
+// ── WEBHOOK ───────────────────────────────────
+function saveWebhook() {
+  const url = document.getElementById('webhook-url').value.trim();
+  if(!url) { showToast('URL daalo pehle', '#c62828'); return; }
+  webhookUrl = url;
+  localStorage.setItem('htWebhook', url);
+  log('URL saved: ' + url.substring(0,55)+'...');
+  showToast('URL saved!');
+}
+
+async function testConnection() {
+  if(!webhookUrl) { showToast('URL save karo pehle', '#c62828'); return; }
+  log('Testing connection...');
+  try {
+    const r = await fetch(webhookUrl + '?ping=1');
+    const text = await r.text();
+    log('SUCCESS: ' + text);
+    updateSyncUI(true, 'Connected ✓');
+    showToast('Connected! Sheet ready ✓', '#2e7d32');
+  } catch(e) {
+    log('FAILED: ' + e.message);
+    updateSyncUI(false, 'Connection failed');
+    showToast('Failed — check URL', '#c62828');
+  }
+}
+
+// ── PUSH TO SHEETS (key fix: text/plain;charset=utf-8) ──
+async function pushToSheets(action, payload) {
+  if(!webhookUrl) return { status: 'no-url' };
+  try {
+    // Use GET with URL params — bypasses CORS completely
+    let url = webhookUrl + '?action=' + encodeURIComponent(action);
+    if(action === 'delete') {
+      url += '&id=' + encodeURIComponent(payload.id);
+    } else if(action === 'add' || action === 'update') {
+      url += '&data=' + encodeURIComponent(JSON.stringify(payload.entry));
+    } else if(action === 'sync') {
+      url += '&data=' + encodeURIComponent(JSON.stringify(payload.entries));
+    }
+    const response = await fetch(url);
+    const text = await response.text();
+    try { return JSON.parse(text); }
+    catch(e) { return { status: 'ok', raw: text }; }
+  } catch(e) {
+    log('Push error: ' + e.message);
+    return { status: 'error', msg: e.message };
+  }
+}
+
+async function syncAll() {
+  if(!webhookUrl) { showToast('URL save karo pehle', '#c62828'); return; }
+  log('Syncing ' + entries.length + ' entries...');
+  const r = await pushToSheets('sync', { entries });
+  log('Sync result: ' + JSON.stringify(r));
+  if(r.status === 'ok') {
+    showToast('Synced to Sheets! ✓', '#2e7d32');
+    updateSyncUI(true, 'Connected ✓');
+  } else {
+    showToast('Sync issue — see log', '#e65100');
+  }
+}
+
+// ── UID GENERATOR ─────────────────────────────
+function genUID() {
+  const ids = entries.map(e => e.id);
+  let n = entries.length + 1;
+  let id = 'HT-' + String(n).padStart(4,'0');
+  while(ids.includes(id)) { n++; id = 'HT-' + String(n).padStart(4,'0'); }
+  return id;
+}
+
+// ── SAVE ENTRY ────────────────────────────────
+async function saveEntry() {
+  const name   = document.getElementById('f-name').value.trim();
+  const fy     = document.getElementById('f-fy').value.trim();
+  const notice = document.getElementById('f-notice').value;
+  const reply  = document.getElementById('f-reply').value;
+  const date   = document.getElementById('f-date').value;
+  const gmail1 = document.getElementById('f-gmail1').value.trim();
+  const gmail2 = document.getElementById('f-gmail2').value.trim();
+  const remark = document.getElementById('f-remark').value.trim();
+
+  if(!name || !notice || !date || !gmail1) {
+    showToast('Name, Notice Type, Date & Gmail 1 required', '#c62828');
+    return;
+  }
+
+  const entry = { id: editId || genUID(), name, fy, notice, reply, date, gmail1, gmail2, remark };
+
+  if(editId) {
+    const idx = entries.findIndex(e => e.id === editId);
+    if(idx > -1) entries[idx] = entry;
+    log('Updating: ' + entry.id);
+    const r = await pushToSheets('update', { entry });
+    log('Result: ' + JSON.stringify(r));
+    showToast('Updated ✓ ID: ' + entry.id, '#1565C0');
+    editId = null;
+    document.getElementById('form-lbl').textContent = 'New Entry';
+    document.getElementById('uid-row').style.display = 'none';
+  } else {
+    entries.push(entry);
+    log('Adding: ' + entry.id);
+    const r = await pushToSheets('add', { entry });
+    log('Result: ' + JSON.stringify(r));
+    showToast('Saved! ID: ' + entry.id, '#2e7d32');
+  }
+
+  localStorage.setItem('htEntries', JSON.stringify(entries));
+  clearForm();
+}
+
+// ── CLEAR FORM ────────────────────────────────
+function clearForm() {
+  ['f-name','f-fy','f-gmail1','f-gmail2','f-remark','f-date'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-notice').value = '';
+  document.getElementById('f-reply').value = '';
+  editId = null;
+  document.getElementById('form-lbl').textContent = 'New Entry';
+  document.getElementById('uid-row').style.display = 'none';
+}
+
+// ── EDIT ENTRY ────────────────────────────────
+function editEntry(id) {
+  const e = entries.find(x => x.id === id);
+  if(!e) return;
+  editId = id;
+  document.getElementById('f-name').value  = e.name;
+  document.getElementById('f-fy').value    = e.fy;
+  document.getElementById('f-notice').value = e.notice;
+  document.getElementById('f-reply').value  = e.reply;
+  document.getElementById('f-date').value   = e.date;
+  document.getElementById('f-gmail1').value = e.gmail1;
+  document.getElementById('f-gmail2').value = e.gmail2 || '';
+  document.getElementById('f-remark').value = e.remark;
+  document.getElementById('f-uid').value    = e.id;
+  document.getElementById('uid-row').style.display = 'block';
+  document.getElementById('form-lbl').textContent = 'Editing: ' + e.name + ' (' + e.id + ')';
+  sw('form');
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+// ── DELETE ENTRY ──────────────────────────────
+async function deleteEntry(id) {
+  if(!confirm('Delete entry ' + id + '?')) return;
+  entries = entries.filter(e => e.id !== id);
+  localStorage.setItem('htEntries', JSON.stringify(entries));
+  log('Deleting: ' + id);
+  const r = await pushToSheets('delete', { id });
+  log('Result: ' + JSON.stringify(r));
+  renderList();
+  showToast('Deleted', '#555');
+}
+
+// ── FORMAT DATE ───────────────────────────────
+function formatDate(d) {
+  if(!d) return '';
+  const [y,m,day] = d.split('-');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return day + ' ' + months[parseInt(m)-1] + ' ' + y;
+}
+
+// ── RENDER LIST ───────────────────────────────
+function renderList() {
+  const fn = document.getElementById('fil-n').value;
+  const fr = document.getElementById('fil-r').value;
+  let filtered = entries.filter(e => (!fn || e.notice===fn) && (!fr || e.reply===fr));
+  filtered.sort((a,b) => a.date.localeCompare(b.date));
+  const c = document.getElementById('list-con');
+  if(!filtered.length) { c.innerHTML = '<div class="empty">No entries found</div>'; return; }
+
+  const today    = new Date().toISOString().split('T')[0];
+  const tomorrow = new Date(Date.now()+86400000).toISOString().split('T')[0];
+
+  c.innerHTML = filtered.map(e => {
+    const isToday    = e.date === today;
+    const isTomorrow = e.date === tomorrow;
+    const isPast     = e.date < today;
+    const cls = isToday ? 'today' : isPast ? 'past' : '';
+    const rb  = e.reply==='YES' ? '<span class="badge b-green">✓ Replied</span>'
+               : e.reply==='NO'  ? '<span class="badge b-red">✗ No reply</span>'
+               : e.reply==='PENDING' ? '<span class="badge b-orange">⏳ Pending</span>' : '';
+    const dateBadge = isToday    ? '<span class="badge b-today">🔴 TODAY</span>'
+                    : isTomorrow ? '<span class="badge b-tomorrow">🟠 TOMORROW</span>' : '';
+    return `<div class="entry-card ${cls}">
+      <div class="ec-top">
+        <div class="ec-name">${e.name}</div>
+        <span class="uid-badge">${e.id}</span>
+      </div>
+      <div class="ec-meta">${e.fy ? e.fy + ' &nbsp;|&nbsp; ' : ''}📅 ${formatDate(e.date)}</div>
+      <div class="badges">
+        <span class="badge b-blue">${e.notice}</span>${rb}${dateBadge}
+      </div>
+      <div class="ec-gmail">📧 ${e.gmail1}${e.gmail2 ? ' &nbsp;|&nbsp; ' + e.gmail2 : ''}</div>
+      ${e.remark ? '<div class="ec-remark">' + e.remark + '</div>' : ''}
+      <div class="ec-actions">
+        <button class="ec-btn" onclick="editEntry('${e.id}')">✏️ Edit</button>
+        <button class="ec-btn del" onclick="deleteEntry('${e.id}')">🗑️ Delete</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── EXPORT CSV ────────────────────────────────
+function exportCSV() {
+  if(!entries.length) { showToast('No entries to export', '#c62828'); return; }
+  const h = ['ID','Name','F.Y','Notice Type','Reply','Hearing Date','Gmail 1','Gmail 2','Remark'];
+  const rows = entries.map(e =>
+    [e.id,e.name,e.fy,e.notice,e.reply,e.date,e.gmail1,e.gmail2||'',e.remark]
+    .map(v => '"'+(v||'')+'"').join(',')
+  );
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([[h.join(','), ...rows].join('\n')], {type:'text/csv'}));
+  a.download = 'hearing_tracker_backup.csv';
+  a.click();
+  showToast('CSV downloaded!', '#1565C0');
+}
+
+// ── CHANGE PASSWORD ───────────────────────────
+function changePassword() {
+  const np = document.getElementById('new-pass').value.trim();
+  if(!np || np.length < 4) { showToast('Min 4 characters required', '#c62828'); return; }
+  localStorage.setItem('htCorrectPass', np);
+  localStorage.setItem('htPass', np);
+  document.getElementById('new-pass').value = '';
+  showToast('Password updated!', '#2e7d32');
+}
+</script>
+</body>
+</html>
